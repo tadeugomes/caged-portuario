@@ -1,3 +1,3 @@
-# Mercado de Trabalho Portuário: tendências e movimentações 
+# Mercado de Trabalho Portuário
 
-O objetivo do boletim é acompanhar a movimentação do mercado de trabalho no setor portuário maranhense. 
+Relatório elaborado pelo Observatório Portuário para avaliar as dinâmicas do mercado de trabalho no setor portuário. 
