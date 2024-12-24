@@ -1,7 +1,9 @@
+# Configurar codificação UTF-8 globalmente
+options(encoding = "UTF-8")     
+
 
 library(basedosdados)
 library(tidyverse)
-
 
 # Detach plyr if it's loaded to avoid conflicts
 if ("package:plyr" %in% search()) {
@@ -12,24 +14,59 @@ if ("package:plyr" %in% search()) {
 # Defina o seu projeto no Google Cloud
 set_billing_id("observatorio-portuario")
 
-# Criação da query utilizando basedosdados
- 
-query <- bdplyr("br_me_caged.microdados_movimentacao") %>%
-  filter(cnae_2_subclasse %in% c('5231101', '5231102', '5011401', '5011402', '5021101', '5021102', 
-                                 '5022001', '5022002', '5030101', '5030102', '5030103', 
-                                 '5091201', '5091202', '5099801', '5099899')) %>%
-  select(ano, mes, sigla_uf, saldo_movimentacao, id_municipio, cnae_2_secao, 
-         categoria, cnae_2_subclasse, cbo_2002, grau_instrucao, sexo, 
-         salario_mensal, indicador_trabalho_intermitente, indicador_trabalho_parcial)
+
+# Criação da query utilizando SQL diretamente
+query <- "
+SELECT 
+  ano,
+  mes,
+  sigla_uf,
+  saldo_movimentacao,
+  id_municipio,
+  cnae_2_secao,
+  categoria,
+  cnae_2_subclasse,
+  cbo_2002,
+  grau_instrucao,
+  sexo,
+  salario_mensal,
+  indicador_trabalho_intermitente,
+  indicador_trabalho_parcial
+FROM `basedosdados.br_me_caged.microdados_movimentacao`
+WHERE cnae_2_subclasse IN (
+      --essas duas subclasses são da divisão 50 TRANSPORTE AQUAVIÁRIO
+      '5231101', --Administração da infraestrutura portuária
+      '5231102', --Atividades do operador portuário
+      --essas outras são novas
+      '5011401', --Transporte marítimo de cabotagem - carga
+      '5011402', --Transporte marítimo de cabotagem - passageiros
+      '5021101', --Transporte por navegação interior de carga, municipal, exceto travessia
+      '5021102', --Transporte por navegação interior de carga, intermunicipal, interestadual e internacional, exceto travessia
+      '5022001', --Transporte por navegação interior de passageiros em linhas regulares, municipal, exceto travessia
+      '5022002', --Transporte por navegação interior de passageiros em linhas regulares, intermunicipal, interestadual e internacional, exceto travessia
+      '5030101', --Navegação de apoio marítimo
+      '5030102', --Navegação de apoio portuário
+      '5030103', --Serviço de rebocadores e empurradores
+      '5091201', --Transporte por navegação de travessia, municipal
+      '5091202', --Transporte por navegação de travessia intermunicipal, interestadual e internacional
+      '5099801', --Transporte aquaviário para passeios turísticos
+      '5099899', --Outros transportes aquaviários não especificados anteriormente
+      --novas subclasses incluídas
+      '5012201', --Transporte marítimo de longo curso - carga
+      '5012202', --Transporte marítimo de longo curso - passageiros
+      '5231103', --Gestão de terminais aquaviários
+      '5232000', --Atividades de agenciamento marítimo
+      '5239701', --Serviços de praticagem
+      '5239799' --Atividades auxiliares dos transportes aquaviários não especificadas anteriormente
+)"
 
 # Coleta dos dados
-df <- bd_collect(query)
-
+df <- read_sql(query)
 # Salvar os dados em csv
 saveRDS(df, file = "df.rds")
 
 # Salvar os dados em csv
-#write.csv(df, "dados_caged.csv", row.names = FALSE)
+write.csv(df, "dados_caged.csv", row.names = FALSE)
 
 
 ###################
@@ -61,7 +98,13 @@ df_dois <- df %>%
                                    '5091201' = 'Transporte por navegação de travessia, municipal',
                                    '5091202' = 'Transporte por navegação de travessia intermunicipal, interestadual e internacional',
                                    '5099801' = 'Transporte aquaviário para passeios turísticos',
-                                   '5099899' = 'Outros transportes aquaviários não especificados anteriormente'))
+                                   '5099899' = 'Outros transportes aquaviários não especificados anteriormente',
+                                   '5012201' = 'Transporte marítimo de longo curso - carga',
+                                   '5012202' = 'Transporte marítimo de longo curso - passageiros',
+                                   '5231103' = 'Gestão de terminais aquaviários',
+                                   '5232000' = 'Atividades de agenciamento marítimo',
+                                   '5239701' = 'Serviços de praticagem',
+                                   '5239799' = 'Atividades auxiliares dos transportes aquaviários não especificadas anteriormente'))
 
 
 df_dois$indicador_trabalho_parcial <- factor(df_dois$indicador_trabalho_parcial)
@@ -75,20 +118,19 @@ df_dois$indicador_trabalho_intermitente <- fct_recode(df_dois$indicador_trabalho
                                           "Sim" = "1", "Nao" = "0", 'NA' = '9')
 
 df_dois$grau_instrucao <- factor(df_dois$grau_instrucao)
-
 df_dois$grau_instrucao <- fct_recode(df_dois$grau_instrucao,    
-                                      'Analfabeto' = '1', 
-                                      'Até 5ª Incompleto' = '2', 
-                                      '5ª Completo Fundamental' = '3', 
-                                      '6ª a 9ª Fundamental' = '4', 
-                                      'Fundamental Completo' = '5',
-                                      'Médio Incompleto' = '6', 
-                                      'Médio Completo' = '7', 
-                                      'Superior Incompleto' = '8', 
-                                      'Superior Completo' = '9', 
-                                      'Mestrado' = '10', 
-                                      'Doutorado' = '11', 
-                                      'Especialização' = '80')
+                                     'Analfabeto' = '1', 
+                                     'Até 5ª Incompleto' = '2', 
+                                     '5ª Completo Fundamental' = '3', 
+                                     '6ª a 9ª Fundamental' = '4', 
+                                     'Fundamental Completo' = '5',
+                                     'Médio Incompleto' = '6', 
+                                     'Médio Completo' = '7', 
+                                     'Superior Incompleto' = '8', 
+                                     'Superior Completo' = '9', 
+                                     'Mestrado' = '10', 
+                                     'Doutorado' = '11', 
+                                     'Especialização' = '80')
 
 
 df_dois$indicador_trabalho_intermitente <- factor(df_dois$indicador_trabalho_intermitente)
@@ -133,7 +175,7 @@ cbo <-
 
 
 
-#da variáveil cbo_2002
+#da variÃ¡veil cbo_2002
 df_tres <- 
   left_join(df_dois, #primeira tabela
             cbo, #segunda tabela
@@ -142,7 +184,7 @@ df_tres <-
   select(!TITULO)
 
 
-# Define um vetor com as regiões para criar uma nova coluna
+# Define um vetor com as regiÃµes para criar uma nova coluna
 
 regioes <- list(
   "Norte" = c("RO", "AC", "AM", "RR", "PA", "AP", "TO"),
@@ -152,7 +194,7 @@ regioes <- list(
   "Sul" = c("PR", "SC", "RS")
 )
 
-# Função para retornar a região a partir da sigla
+# FunÃ§Ã£o para retornar a regiÃ£o a partir da sigla
 get_regiao <- function(sigla) {
   regiao <- NA
   for (r in names(regioes)) {
@@ -164,7 +206,7 @@ get_regiao <- function(sigla) {
   return(regiao)
 }
 
-# Aplica a função para criar a nova coluna regiao
+# Aplica a funÃ§Ã£o para criar a nova coluna regiao
 df_tres$regiao <- sapply(df_tres$sigla_uf, get_regiao)
 
 
@@ -192,7 +234,7 @@ df_variacao <- df_resumo %>%
     saldo_trimestral_anterior = lag(saldo_somado, n = 3),
     variacao_trimestral = round(((saldo_somado - saldo_trimestral_anterior) / saldo_trimestral_anterior) * 100, 2)
   ) %>%
-  slice_max(order_by = data_mes, n = 1) %>%  # Seleciona a última data para cada sigla_uf
+  slice_max(order_by = data_mes, n = 1) %>%  # Seleciona a Ãºltima data para cada sigla_uf
   ungroup()
 
 
@@ -200,5 +242,8 @@ df_variacao <- df_resumo %>%
 
 ultimo_dado <- df_tres[df_tres$data == max(df_tres$data), ]
 
-
+# Ou alternativamente
+ultimo_dado <- df_tres %>%
+  filter(!is.na(data)) %>%
+  filter(data == max(data, na.rm = TRUE))
 
