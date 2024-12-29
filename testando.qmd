@@ -1,4 +1,3 @@
-
 ---
 title: " Mercado de Trabalho Portuário"
 subtitle: "Agosto 2 de 2024"
@@ -10,7 +9,7 @@ crossref:
   fig-title: Gráfico
   ref-hyperlink: true
 execute:
-  echo: false
+  echo: true
 format:
   html: 
     toc: true
@@ -22,7 +21,6 @@ format:
 
 ```{r, include=FALSE, warning=FALSE, message=FALSE}
 library(tidyverse)
-library(jsonlite)
 library(RColorBrewer)
 library(highcharter)
 library(reactable)
@@ -42,207 +40,75 @@ suppressPackageStartupMessages({
   library(dplyr)
   library(tidyr)
   library(ggplot2)
-  library(jsonlite)
 })
 
-```
+options(dplyr.summarise.inform = FALSE)
 
-```{=html}
-<style>
-body {
-text-align: justify;
-font-family: "arial";
-font-size: 14px}
-</style>
-```
-```{r, warning=FALSE, message=FALSE}
-#| warning: false
-#| message: false
+library(readr)
 
-
-#### Leitura do arquivo salvo 
-
-df <- readRDS("df.rds")
-  
-
-
-
-# Verifica se há NA e lida com eles antes de criar a coluna data
-df <- df %>%
-  # Remover ou substituir NAs nos anos e meses (depende do que você quer fazer com os NAs)
-  filter(!is.na(ano) & !is.na(mes)) %>%
-  # Certificar que ano e mês estão no formato numérico e são inteiros
-  mutate(
-    ano = as.integer(ano),
-    mes = as.integer(mes),
-    # Cria a coluna data garantindo que o mês seja sempre de dois dígitos
-    data = ymd(paste(ano, sprintf("%02d", mes), "01"))
-  )
-
-
-##### Fazer label encoding das colunas do tipo factor
-
-df_dois <- df %>%
-  mutate(cnae_2_subclasse = recode(cnae_2_subclasse,
-                                   '5231101' = 'Administração da infraestrutura portuária',
-                                   '5231102' = 'Atividades do operador portuário',
-                                   '5011401' = 'Transporte marítimo de cabotagem - carga',
-                                   '5011402' = 'Transporte marítimo de cabotagem - passageiros',
-                                   '5021101' = 'Transporte por navegação interior de carga, municipal, exceto travessia',
-                                   '5021102' = 'Transporte por navegação interior de carga, intermunicipal, interestadual e internacional, exceto travessia',
-                                   '5022001' = 'Transporte por navegação interior de passageiros em linhas regulares, municipal, exceto travessia',
-                                   '5022002' = 'Transporte por navegação interior de passageiros em linhas regulares, intermunicipal, interestadual e internacional, exceto travessia',
-                                   '5030101' = 'Navegação de apoio marítimo',
-                                   '5030102' = 'Navegação de apoio portuário',
-                                   '5030103' = 'Serviço de rebocadores e empurradores',
-                                   '5091201' = 'Transporte por navegação de travessia, municipal',
-                                   '5091202' = 'Transporte por navegação de travessia intermunicipal, interestadual e internacional',
-                                   '5099801' = 'Transporte aquaviário para passeios turísticos',
-                                   '5099899' = 'Outros transportes aquaviários não especificados anteriormente'))
-
-
-df_dois$indicador_trabalho_parcial <- factor(df_dois$indicador_trabalho_parcial)
-
-df_dois$indicador_trabalho_parcial <- fct_recode(df_dois$indicador_trabalho_parcial, 
-                                     'Sim' = '1', 'Nao' = '0', 'NA' = '9')
-
-df_dois$indicador_trabalho_intermitente <- factor(df_dois$indicador_trabalho_intermitente)
-
-df_dois$indicador_trabalho_intermitente <- fct_recode(df_dois$indicador_trabalho_intermitente, 
-                                          "Sim" = "1", "Nao" = "0", 'NA' = '9')
-
-df_dois$grau_instrucao <- factor(df_dois$grau_instrucao)
-
-df_dois$grau_instrucao <- fct_recode(df_dois$grau_instrucao,    
-                                      'Analfabeto' = '1', 
-                                      'Até 5ª Incompleto' = '2', 
-                                      '5ª Completo Fundamental' = '3', 
-                                      '6ª a 9ª Fundamental' = '4', 
-                                      'Fundamental Completo' = '5',
-                                      'Médio Incompleto' = '6', 
-                                      'Médio Completo' = '7', 
-                                      'Superior Incompleto' = '8', 
-                                      'Superior Completo' = '9', 
-                                      'Mestrado' = '10', 
-                                      'Doutorado' = '11', 
-                                      'Especialização' = '80')
-
-
-df_dois$indicador_trabalho_intermitente <- factor(df_dois$indicador_trabalho_intermitente)
-
-
-df_dois$indicador_trabalho_intermitente <- fct_recode(df_dois$indicador_trabalho_intermitente, 
-                                                 'Sim' = '1', 'Nao' = '0', 'NA' = '9')
- 
-df_dois$saldo_movimentacao <- factor(df_dois$saldo_movimentacao)
-
-df_dois$saldo_movimentacao <- fct_recode(df_dois$saldo_movimentacao, 
-                                                      "Admitidos" = "1", "Desligados" = "-1")
-
-
-
-
-df_dois$sexo <- factor(df_dois$sexo)
-
-df_dois$sexo <- fct_recode(df_dois$sexo, 
-                                         "Homem" = "1", "Mulher" = "3")
-
-
-
-##### Mudar o tipo de dado para fazer o join abaixo
-df_dois$cbo_2002<- factor(df_dois$cbo_2002)
-
-
-#lendo arquivo da cbo 2002
-cbo <- read_delim(file = 'cbo2002.csv', delim = ";",
-                  col_type = list(.default = "f"),
-                  locale = locale(encoding = "latin1"))
-
-
-
-# substituindo o valor 517235 por 517335 da coluna CODIGO da tabela cbo
-cbo <- 
-  cbo %>% mutate(
-    CODIGO = as.character(CODIGO),
-    CODIGO = if_else(CODIGO == "517235", "517335", CODIGO),
-    CODIGO = as.factor(CODIGO))
-
-
-
-
-#da variáveil cbo_2002
-df_tres <- 
-  left_join(df_dois, #primeira tabela
-            cbo, #segunda tabela
-            by = c("cbo_2002" = "CODIGO")) %>% 
-  mutate(cbo_2002 = TITULO) %>% #substituindo 
-  select(!TITULO)
-
-
-# Define um vetor com as regiões para criar uma nova coluna
-
-regioes <- list(
-  "Norte" = c("RO", "AC", "AM", "RR", "PA", "AP", "TO"),
-  "Nordeste" = c("MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA"),
-  "Centro-Oeste" = c("MS", "MT", "GO", "DF"),
-  "Sudeste" = c("MG", "ES", "RJ", "SP"),
-  "Sul" = c("PR", "SC", "RS")
+# Especificar os tipos de colunas
+col_types <- cols(
+  ano = col_integer(),
+  mes = col_integer(),
+  sigla_uf = col_character(),
+  saldo_movimentacao = col_factor(),
+  id_municipio = col_character(),
+  cnae_2_secao = col_character(),
+  categoria = col_character(),
+  cnae_2_subclasse = col_character(),
+  cbo_2002 = col_factor(),
+  grau_instrucao = col_factor(),
+  sexo = col_factor(),
+  salario_mensal = col_double(),
+  indicador_trabalho_intermitente = col_factor(),
+  indicador_trabalho_parcial = col_factor(),
+  data = col_date(),
+  regiao = col_character()
 )
 
-# Função para retornar a região a partir da sigla
-get_regiao <- function(sigla) {
-  regiao <- NA
-  for (r in names(regioes)) {
-    if (sigla %in% regioes[[r]]) {
-      regiao <- r
-      break
-    }
-  }
-  return(regiao)
-}
 
-# Aplica a função para criar a nova coluna regiao
-df_tres$regiao <- sapply(df_tres$sigla_uf, get_regiao)
+# Caso UTF-8 não funcione corretamente,  tentar Latin1
+ultimo_dado <- read_csv("dados/tratados/ultimo_dado.csv", locale = locale(encoding = "Latin1"), col_types = col_types)
 
-
-
-# Selecionando as colunas desejadas para criar o valuebox
-df_selecionado <- df %>%
-  select(sigla_uf, saldo_movimentacao, data)
-
-df_resumo <- df_selecionado %>%
-  group_by(sigla_uf, year = lubridate::year(data), month = lubridate::month(data)) %>%
-  summarize(saldo_somado = sum(saldo_movimentacao, na.rm = TRUE)) %>%
-  ungroup()
-
-df_resumo <- df_resumo %>%
-  mutate(data_mes = as.Date(paste(year, month, "01", sep = "-"), format = "%Y-%m-%d")) %>%
-  select(sigla_uf, data_mes, saldo_somado)
-
-
-df_variacao <- df_resumo %>%
-  arrange(sigla_uf, data_mes) %>%
-  group_by(sigla_uf) %>%
-  mutate(
-    saldo_anterior = lag(saldo_somado, n = 12),
-    percentual_variacao = round(((saldo_somado - saldo_anterior) / saldo_anterior) * 100, 2),
-    saldo_trimestral_anterior = lag(saldo_somado, n = 3),
-    variacao_trimestral = round(((saldo_somado - saldo_trimestral_anterior) / saldo_trimestral_anterior) * 100, 2)
-  ) %>%
-  slice_max(order_by = data_mes, n = 1) %>%  # Seleciona a última data para cada sigla_uf
-  ungroup()
-
-
-# Seleciona o ultimo dado de mes disponivel para analise do mes vigente
-
-ultimo_dado <- df_tres[df_tres$data == max(df_tres$data), ]
 
 
 ```
+
+
+
 
 # Dinâmica do Mercado de Trabalho Portuário no Brasil
 
 ```{r}
+
+
+
+library(readr)
+
+# Especificar os tipos de colunas
+col_types <- cols(
+  ano = col_integer(),
+  mes = col_integer(),
+  sigla_uf = col_character(),
+  saldo_movimentacao = col_factor(),
+  id_municipio = col_character(),
+  cnae_2_secao = col_character(),
+  categoria = col_character(),
+  cnae_2_subclasse = col_character(),
+  cbo_2002 = col_factor(),
+  grau_instrucao = col_factor(),
+  sexo = col_factor(),
+  salario_mensal = col_double(),
+  indicador_trabalho_intermitente = col_factor(),
+  indicador_trabalho_parcial = col_factor(),
+  data = col_date(),
+  regiao = col_character()
+)
+
+
+# Caso UTF-8 não funcione corretamente,  tentar Latin1
+ultimo_dado <- read_csv("dados/tratados/ultimo_dado.csv", locale = locale(encoding = "Latin1"), col_types = col_types)
+
 #saldo nacional
 
 # Agrupar os dados e contar os Admitidos e Desligados
@@ -357,131 +223,59 @@ Ao analisar o desempenho por unidade da federação, o @fig-saldo_uf mostra o de
 
 ### Saldo por UF 
 
+library(dplyr)
+library(ggplot2)
+library(lubridate)
 
-# Função para obter dados com base no mês
-get_data <- function(mes = NULL) {
-  if (is.null(mes)) {
-    # Seleciona o último mês disponível se não for fornecido
-    mes <- df_resumo %>%
-      summarise(ultimo_mes = max(data_mes, na.rm = TRUE)) %>%
-      pull(ultimo_mes)
-  }
-  
-  df_resumo %>%
-    filter(data_mes == mes) %>%
-    arrange(desc(saldo_somado)) %>%
-    select(sigla_uf, saldo_somado)
-}
+# Seleciona o último dado de mês disponível para análise do mês vigente
 
-# Funcao para criar grafico
-create_chart <- function(mes = NULL) {
-  dados <- get_data(mes)
-  
-  highchart() %>%
-    hc_chart(type = "bar") %>%
-    hc_title(text = "") %>%
-    hc_xAxis(categories = dados$sigla_uf, 
-             labels = list(style = list(fontSize = '9px'))) %>% 
-    hc_yAxis(title = list(text = "Saldo")) %>%
-    hc_add_series(name = format(mes, "%Y-%m"), data = dados$saldo_somado) %>%
-        hc_legend(enabled = FALSE) %>%  
-    hc_plotOptions(series = list(dataLabels = list(enabled = TRUE)))
-}
+# Selecionar as colunas relevantes e converter saldo_movimentacao
+df_saldo_mensal <- ultimo_dado %>%
+  select(sigla_uf, saldo_movimentacao, data) %>%
+  mutate(saldo_movimentacao_num = case_when(
+    saldo_movimentacao == "Desligados" ~ -1,
+    saldo_movimentacao == "Admitidos" ~ 1,
+    TRUE ~ NA_real_  # para lidar com possíveis valores faltantes ou desconhecidos
+  )) %>%
+  # Agrupar por sigla_uf, ano e mês, e calcular a soma mensal
+  group_by(sigla_uf, year = year(data), month = month(data)) %>%
+  summarize(saldo_somado_mensal = sum(saldo_movimentacao_num, na.rm = TRUE)) %>%
+  ungroup()
 
-# criar gráfico para um o ultimo mes disponivel
+# Criar o dataset df_variacao
+df_variacao <- df_saldo_mensal %>%
+  arrange(sigla_uf, year, month) %>%
+  group_by(sigla_uf) %>%
+  mutate(
+    saldo_anterior = lag(saldo_somado_mensal, n = 12),
+    percentual_variacao = round(((saldo_somado_mensal - saldo_anterior) / saldo_anterior) * 100, 2),
+    saldo_trimestral_anterior = lag(saldo_somado_mensal, n = 3),
+    variacao_trimestral = round(((saldo_somado_mensal - saldo_trimestral_anterior) / saldo_trimestral_anterior) * 100, 2)
+  ) %>%
+  slice_max(order_by = month, n = 1) %>%  # Seleciona a última data para cada sigla_uf
+  ungroup()
 
-create_chart()
+# Criar o gráfico com ggplot2
+ggplot(df_saldo_mensal, aes(x = reorder(sigla_uf, saldo_somado_mensal), y = saldo_somado_mensal)) +
+  geom_bar(stat = "identity", fill = "#87CEFA") +
+  coord_flip() +
+  labs(
+    title = "Saldo por UF",
+    x = "",
+    y = ""
+  ) +
+  theme_minimal() +
+  geom_text(aes(label = saldo_somado_mensal), hjust = -0.3)
+
+
 
 ```
 
 Os gráficos acima apresentam a distribuição de movimentações de vínculos em diferentes unidades federativas e em suas respectivas regiões. A análise permite identificar variações na quantidade de movimentações, evidenciando tanto aumentos quanto reduções em cada estado e região. Esse panorama facilita a compreensão do desempenho regional no mês.
 
-O @fig-mapa-saldo mostra o saldo de cada estado pela perspectiva comparativa nacional.
-
-```{r}
-#| warning: false
-#| message: false
-#| fig-cap: "Mapa do saldo por estado"
-#| label: fig-mapa-saldo
-
-
-# URL para o arquivo GeoJSON dos estados brasileiros
-geojson_url <- "https://code.highcharts.com/mapdata/countries/br/br-all.geo.json"
-
-# Carrega o arquivo GeoJSON
-br_map <- fromJSON(geojson_url, simplifyVector = FALSE)
-
-# Função para obter dados com base no mês
-get_data_mapa <- function(mes) {
-  df_resumo %>%
-    filter(data_mes == mes) %>%
-    arrange(desc(saldo_somado)) %>%
-    select(sigla_uf, saldo_somado) %>%
-    mutate(sigla_uf = toupper(sigla_uf))
-}
-
-# Selecionar o último valor disponível para o mês
-mes_selecionado <- df_resumo %>%
-  summarise(ultimo_mes = max(data_mes, na.rm = TRUE)) %>%
-  pull(ultimo_mes)
-
-# Obter os dados para o mês selecionado
-dados_estados <- get_data_mapa(mes_selecionado)
-
-# Criar uma paleta de cores mais sensível
-n_cores <- 9  
-paleta_cores <- colorRampPalette(brewer.pal(n_cores, "Blues"))(10)
-
-valor_min <- min(dados_estados$saldo_somado, na.rm = TRUE)
-valor_max <- max(dados_estados$saldo_somado, na.rm = TRUE)
-
-# Criar o mapa
-highchart(type = "map") %>%
-  hc_add_series_map(br_map, dados_estados, value = "saldo_somado", joinBy = c("hc-a2", "sigla_uf")) %>%
-  hc_title(text = paste("")) %>%
-  
-  # Remover a legenda lateral
-  hc_legend(enabled = FALSE) %>%
-  
-  # Exibir valores no próprio mapa
-  hc_plotOptions(map = list(
-    dataLabels = list(
-      enabled = TRUE, # Ativa a exibição de rótulos
-      format = '{point.value}', # Formato do rótulo: exibe o valor
-      style = list(
-        fontWeight = "bold", # Define o texto em negrito
-        color = "black", # Define a cor do texto
-        textOutline = "none" # Remove a borda em volta do texto
-      )
-    )
-  )) %>%
-  
-  hc_colorAxis(
-    min = valor_min,
-    max = valor_max,
-    type = "linear",
-    stops = color_stops(n = 100, colors = paleta_cores),
-    lineColor = "#FFFFFF",
-    minColor = "#A2E4F2",
-    maxColor = "#0D0D0D"
-  ) %>%
-  
-  hc_mapNavigation(enabled = TRUE) %>%
-  
-  # Customização do tooltip
-  hc_tooltip(
-    formatter = JS("function() {
-      return '<b>' + this.point.name + '</b><br>' +
-             'Saldo: ' + Highcharts.numberFormat(this.point.value, 0);
-    }")
-  )
-
-
-```
-
 O @fig-salarial_regiao, por sua vez, apresenta a distribuição da mediana salarial mensal para admitidos e desligados nas diferentes regiões do Brasil. Os boxplots permitem visualizar a variação dos salários dentro de cada grupo, destacando a mediana, os quartis e os possíveis valores atípicos. Essa análise comparativa entre admitidos e desligados em cada região oferece uma perspectiva das diferenças salariais, ajudando a identificar tendências regionais.
 
-```{r}
+```{r, cache=TRUE}
 #| warning: false
 #| message: false
 #| fig-cap: "Mediana salarial mensal por região (R$)"
@@ -490,6 +284,7 @@ O @fig-salarial_regiao, por sua vez, apresenta a distribuição da mediana salar
 ## Mediana do salario por regiao
 
 salario_regiao <- ultimo_dado
+
 names(salario_regiao) <- make.names(names(salario_regiao), unique = TRUE)
 
 # Calcula os quartis e o IQR, ignorando valores NA
@@ -571,23 +366,59 @@ O @fig-escolaridade_br, por sua vez, mostra a distribuição de admissões e des
 #| fig-cap: "Movimentações por grau de escolaridade no país"
 #| label: fig-escolaridade_br
 
+library(readr)
+
+# Especificar os tipos de colunas
+col_types <- cols(
+  ano = col_integer(),
+  mes = col_integer(),
+  sigla_uf = col_character(),
+  saldo_movimentacao = col_factor(),
+  id_municipio = col_character(),
+  cnae_2_secao = col_character(),
+  categoria = col_character(),
+  cnae_2_subclasse = col_character(),
+  cbo_2002 = col_factor(),
+  grau_instrucao = col_factor(),
+  sexo = col_factor(),
+  salario_mensal = col_double(),
+  indicador_trabalho_intermitente = col_factor(),
+  indicador_trabalho_parcial = col_factor(),
+  data = col_date(),
+  regiao = col_character()
+)
+
+# Caso UTF-8 não funcione corretamente,  tentar Latin1
+ultimo_dado <- read_csv("dados/tratados/ultimo_dado.csv", locale = locale(encoding = "Latin1"), col_types = col_types)
+
+library(dplyr)
+library(ggplot2)
+
 ultimo_dado %>%
-  group_by(grau_instrucao) %>%
-  count(saldo_movimentacao) %>% 
+  mutate(saldo_movimentacao_num = case_when(
+    saldo_movimentacao == "Desligados" ~ -1,
+    saldo_movimentacao == "Admitidos" ~  1,
+    TRUE ~ NA_real_
+  ),
+  saldo_movimentacao_num = as.integer(saldo_movimentacao_num)) %>% 
+  group_by(grau_instrucao, saldo_movimentacao) %>% 
+  summarise(n = n(), .groups = "drop") %>% 
   ggplot(aes(x = grau_instrucao, y = n, fill = saldo_movimentacao)) +
-  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) + # Barras lado a lado
-  coord_flip() + # Inverte os eixos para melhor visualização
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
+  coord_flip() +
   geom_text(aes(label = n), 
-            position = position_dodge(width = 0.8), # Ajusta a posição do texto para barras lado a lado
-            vjust = 0.5, # Ajusta a posição vertical do texto
-            size = 3, # Tamanho do texto
-            color = "black") + # Cor do texto
+            position = position_dodge(width = 0.8),
+            vjust = 0.5,
+            size = 3,
+            color = "black") +
   labs(title = "",
        x = "Grau de Instrução",
        y = "Quantidade",
        fill = "Movimentações") +
   theme_minimal() +
-       scale_fill_manual(values = c("Admitidos" = "#87CEFA", "Desligados" = "#FF6347"))
+  scale_fill_manual(values = c("Admitidos" = "#87CEFA", "Desligados" = "#FF6347"))
+
+
 
 ```
 
@@ -687,45 +518,103 @@ ggplot(menores_10_ocupacoes_long, aes(x = reorder(cbo_2002, quantidade), y = qua
 
 # Mercado de Trabalho Portuário no Maranhão
 
-```{r}
+```{r, cache=TRUE}
+
+#|cache=TRUE 
+
+library(dplyr)
+library(lubridate)
+library(readr)
+
+# Especificar os tipos de colunas
+col_types <- cols(
+  ano = col_integer(),
+  mes = col_integer(),
+  sigla_uf = col_character(),
+  saldo_movimentacao = col_factor(),
+  id_municipio = col_character(),
+  cnae_2_secao = col_character(),
+  categoria = col_character(),
+  cnae_2_subclasse = col_character(),
+  cbo_2002 = col_factor(),
+  grau_instrucao = col_factor(),
+  sexo = col_factor(),
+  salario_mensal = col_double(),
+  indicador_trabalho_intermitente = col_factor(),
+  indicador_trabalho_parcial = col_factor(),
+  data = col_date(),
+  regiao = col_character()
+)
+
+
+# Caso UTF-8 não funcione corretamente,  tentar Latin1
+df_limpo <- read_csv("dados/tratados/df_limpo.csv", locale = locale(encoding = "Latin1"), col_types = col_types)
+
+
+
+# 1) Criar a coluna numérica que converte "Admitidos" e "Desligados"
+df_limpo_saldo <- df_limpo %>%
+  mutate(
+    saldo_movimentacao_num = case_when(
+      saldo_movimentacao == "Admitidos"  ~  1,
+      saldo_movimentacao == "Desligados" ~ -1,
+      TRUE ~ NA_real_
+    )
+  )
+
+# 2) Agregar por UF, ano e mês, obtendo saldo_mensal e criando data_mensal para ordenação
+df_mensal <- df_limpo_saldo %>%
+  group_by(sigla_uf, ano, mes) %>%
+  summarise(
+    saldo_mensal = sum(saldo_movimentacao_num, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    data_mensal = as.Date(paste(ano, mes, "01", sep = "-"))
+  )
+
+# 3) Calcular variações trimestral (3 meses) e anual (12 meses)
+df_variacao <- df_mensal %>%
+  arrange(sigla_uf, data_mensal) %>%
+  group_by(sigla_uf) %>%
+  mutate(
+    saldo_trimestral_anterior = lag(saldo_mensal, 3),
+    dif_trimestral            = saldo_mensal - saldo_trimestral_anterior,
+    pct_trimestral            = round((dif_trimestral / saldo_trimestral_anterior) * 100, 2),
+    
+    saldo_anual_anterior      = lag(saldo_mensal, 12),
+    dif_anual                 = saldo_mensal - saldo_anual_anterior,
+    pct_anual                 = round((dif_anual / saldo_anual_anterior) * 100, 2)
+  ) %>%
+  ungroup()
 
 
 saldo_ma <- df_variacao %>%
-  filter(sigla_uf == "MA" & data_mes == max(data_mes)) %>%  
-  pull(saldo_somado)  
+  filter(sigla_uf == "MA" & data_mensal == max(data_mensal)) %>%  
+  pull(saldo_mensal)
 
 
-
-variacao_ultimo_mes_ma<- df_variacao %>%
-  filter(sigla_uf == "MA" & data_mes == max(data_mes)) %>%
-  pull(percentual_variacao) 
-
-
-variacao_trimestral_ma_per <- df_variacao %>%
-  filter(sigla_uf == "MA" & data_mes == max(data_mes)) %>%
-  pull(variacao_trimestral)
-
-saldo_trimestral_ma<- df_variacao %>%
-  filter(sigla_uf == "MA" & data_mes == max(data_mes)) %>%
-  pull(saldo_trimestral_anterior)
 
 
 ```
 
-A movimentação de empregos portuários e aquaviários no estado do Maranhão no mês resultou no saldo de `r saldo_ma` vagas, uma variação de `r variacao_ultimo_mes_ma`%, considerando o mês anterior e uma variação de `r variacao_trimestral_ma_per`% no cálculo trimestral, considerando que o saldo há treses foi de `r saldo_trimestral_ma` vínculos de emprego.
+A movimentação de empregos portuários e aquaviários no estado do Maranhão no mês resultou no saldo de `r saldo_ma` vagas, uma variação de, 
 
 O @fig-saldo-ma mostra a evolução da movimentação e o respectivo saldo de vínculos no estado, mostrando a tendência geral dos processos de admissão e demissão.
 
-```{r, warning=FALSE, message=FALSE, eval=FALSE}
+```{r, warning=FALSE, message=FALSE, cache=TRUE}
 #| warning: false
 #| message: false
+#| cache: true
 #| fig-cap: "Evolução dos vínculos no Maranhão"
 #| label: fig-saldo-ma
 
 
+
+
 # 1. Filtra os dados para o estado do Maranhão (sigla_uf == "MA")
-dados_ma <- df_tres %>%
-  filter(sigla_uf == "MA")
+dados_ma <- df_limpo %>% 
+  filter(sigla_uf=="MA")
 
 # 2. Conta 'Admitidos' e 'Desligados' agrupados por 'data' e 'saldo_movimentacao'
 
@@ -793,6 +682,8 @@ A @tbl-tabela-ma apresenta um resumo das movimentações de admissões e desliga
 #| label: tbl-tabela-ma
 
 library(tidyverse)
+library(reactable)
+
 
 dados_selecionados <- dados_ma_pivot_saldo %>%
   filter(data >= max(data) %m-% months(10)) %>%
@@ -836,6 +727,12 @@ Por sua vez, observa-se no @fig-salario-ma o desempenho do estado do Maranhão n
 #| fig-cap: "Mediana do salário mensal no Maranhão (R$)"
 #| label: fig-salario-ma
 
+options(dplyr.summarise.inform = FALSE)
+
+suppressWarnings({
+  library(dplyr)
+  # Outras operações com o dplyr
+})
 
 #### Mediana UF 
 

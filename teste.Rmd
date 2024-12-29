@@ -38,7 +38,7 @@ font-size: 14px}
 </style>
 ```
 
-```{r, warning=FALSE, message=FALSE}
+```{r, warning=FALSE, message=FALSE, cache=TRUE}
 #| warning: false
 #| message: false
 
@@ -47,7 +47,6 @@ font-size: 14px}
 
 df <- readRDS("df.rds")
   
-
 
 
 # Verifica se há NA e lida com eles antes de criar a coluna data
@@ -225,7 +224,7 @@ ultimo_dado <- df_tres[df_tres$data == max(df_tres$data), ]
 
 # Dinâmica do Mercado de Trabalho Portuário no Brasil
 
-```{r}
+```{r, cache=TRUE}
 #saldo nacional
 
 # Agrupar os dados e contar os Admitidos e Desligados
@@ -242,7 +241,7 @@ saldo_nacional <- Admitidos - Desligados
 
 O número de admitidos no mês foi de `r Admitidos`, enquanto o de desligados foi de `r Desligados`, o que resultou em um saldo (diferença entre admitidos e desligados ) de `r saldo_nacional` postos de trabalho no setor portuário no país.
 
-```{r}
+```{r, cache=TRUE}
 
 # Calcular a contagem de Admitidos e Desligados por regiao
 contagem_saldo_por_regiao <- ultimo_dado %>%
@@ -303,7 +302,7 @@ Na região Norte, o saldo foi de `r saldo_norte` vínculos, com `r Admitidos_nor
 
 Ao considerar o @fig-saldo_regiao, verifica-se as respectivas movimentações de admitidos e desligados por região.
 
-```{r saldo_regiao}
+```{r saldo_regiao, cache=TRUE}
 #| label: fig-saldo_regiao
 #| fig-cap: "Movimentação de vínculos por região"
 #| warning: false
@@ -332,7 +331,7 @@ Ao analisar o desempenho por unidade da federação, o @fig-saldo_uf mostra o de
 
 
 
-```{r}
+```{r, cache=TRUE}
 #| warning: false
 #| message: false
 #| fig-cap: "Saldo por estado"
@@ -384,7 +383,7 @@ Os gráficos acima apresentam a distribuição de movimentações de vínculos e
 
 O @fig-mapa-saldo mostra o saldo de cada estado pela perspectiva comparativa nacional.
 
-```{r}
+```{r, cache=TRUE}
 #| warning: false
 #| message: false
 #| fig-cap: "Mapa do saldo por estado"
@@ -468,7 +467,7 @@ highchart(type = "map") %>%
 O @fig-salarial_regiao, por sua vez, apresenta a distribuição da mediana salarial mensal para admitidos e desligados nas diferentes regiões do Brasil. Os boxplots permitem visualizar a variação dos salários dentro de cada grupo, destacando a mediana, os quartis e os possíveis valores atípicos. Essa análise comparativa entre admitidos e desligados em cada região oferece uma perspectiva das diferenças salariais, ajudando a identificar tendências regionais.
 
 
-```{r}
+```{r, cache=TRUE}
 #| warning: false
 #| message: false
 #| fig-cap: "Mediana salarial mensal por região (R$)"
@@ -529,7 +528,7 @@ O @fig-saldo_sexo_br apresenta a distribuição de admissões e desligamentos no
 
 
 
-```{r}
+```{r, cache=TRUE}
 #| warning: false
 #| message: false
 #| fig-cap: "Saldo de movimentações por sexo"
@@ -557,7 +556,7 @@ ultimo_dado %>%
 O @fig-escolaridade_br, por sua vez, mostra a distribuição de admissões e desligamentos no mercado de trabalho, segmentada por diferentes níveis de escolaridade, no Brasil. As barras empilhadas mostram o total de movimentações para cada nível educacional, permitindo uma análise comparativa sobre como o grau de instrução influencia a dinâmica de contratação e desligamento, o que pode indicar padrões de empregabilidade na força de trabalho.
 
 
-```{r}
+```{r, cache=TRUE}
 #| fig-cap: "Movimentações por grau de escolaridade no país"
 #| label: fig-escolaridade_br
 
@@ -583,22 +582,56 @@ ultimo_dado %>%
 
 O @fig-cbo_saldo_postivo apresenta as 10 ocupações que registraram o maior saldo positivo de movimentações no mês no país, indicando um maior número de admissões em relação aos desligamentos. Cada barra representa uma ocupação e está segmentada em admissões e desligamentos, permitindo uma análise clara das profissões com maior demanda. Isso auxilia na identificação de tendências de crescimento e setores com maior contratação.
 
-```{r}
 
-top_10_cbo<- ultimo_dado %>%
-  group_by(cbo_2002, saldo_movimentacao) %>%
-  summarise(contagem = n(), .groups = 'drop') %>% 
-  pivot_wider(names_from = saldo_movimentacao, values_from = contagem, values_fill = list(contagem = 0)) %>% 
-  mutate(saldo = coalesce(`Admitidos`, 0) - coalesce(`Desligados`, 0)) %>% # Calcula o saldo de movimentação
-  ungroup() %>%
-  arrange(desc(saldo)) %>% # Ordena pelo saldo em ordem decrescente
-  slice(1:10)
 
-```
-
-```{r}
+```{r, cache=TRUE}
 #| fig-cap: "10 ocupações com saldo positivo no mês"
 #| label: fig-cbo_saldo_postivo
+
+
+# 1. Primeiro, verifique se os dados existem e não estão vazios
+if (!exists("ultimo_dado") || nrow(ultimo_dado) == 0) {
+  stop("Dados não disponíveis ou vazios")
+}
+
+# 2. Criar função auxiliar para calcular o saldo
+calcular_saldo <- function(dados) {
+  dados %>%
+    group_by(cbo_2002, saldo_movimentacao) %>%
+    summarise(contagem = n(), .groups = 'drop') %>%
+    pivot_wider(
+      names_from = saldo_movimentacao,
+      values_from = contagem,
+      values_fill = list(contagem = 0)
+    ) %>%
+    mutate(
+      Admitidos = if_else(is.na(Admitidos), 0L, Admitidos),
+      Desligados = if_else(is.na(Desligados), 0L, Desligados),
+      saldo = Admitidos - Desligados
+    )
+}
+
+# 3. Aplicar a função com tratamento de erro
+top_10_cbo <- tryCatch({
+  resultado <- calcular_saldo(ultimo_dado) %>%
+    arrange(desc(saldo)) %>%
+    slice_head(n = 10)
+  
+  if (nrow(resultado) == 0) {
+    stop("Nenhum resultado encontrado após o cálculo")
+  }
+  
+  resultado
+}, error = function(e) {
+  message("Erro ao calcular top 10: ", e$message)
+  return(NULL)
+})
+
+# 4. Verificar resultado antes de continuar
+if (!is.null(top_10_cbo)) {
+  print("Cálculo realizado com sucesso")
+  print(dim(top_10_cbo))
+}
 
 
 # Transformar os dados para formato longo primeiro
@@ -636,7 +669,7 @@ ggplot(top_10_plot_data, aes(x = reorder(cbo_2002, saldo), y = quantidade, fill 
 O @fig-cbo_saldo_negativo, por sua vez, mostra as 10 (dez) ocupações com o maior saldo negativo de movimentações no mês, mostrando profissões onde os desligamentos superaram as admissões. Essa informação é útil para identificar áreas de instabilidade e potencial necessidade de intervenções ou requalificação ou eventuais crises conjunturais.
 
 
-```{r}
+```{r, cache=TRUE}
 #| fig-cap: "10 ocupações com saldo negativo no mês"
 #| label: fig-cbo_saldo_negativo
 
@@ -675,7 +708,7 @@ ggplot(bottom_10_plot_data, aes(x = reorder(cbo_2002, n), y = n, fill = saldo_mo
 
 # Mercado de Trabalho Portuário no Maranhão
 
-```{r}
+```{r, cache=TRUE}
 
 
 saldo_ma <- df_variacao %>%
@@ -704,7 +737,7 @@ A movimentação de empregos portuários e aquaviários no estado do Maranhão n
 
 O @fig-saldo-ma mostra a evolução da movimentação e o respectivo saldo de vínculos no estado, mostrando a tendência geral dos processos de admissão e demissão.
 
-```{r, warning=FALSE, message=FALSE}
+```{r, warning=FALSE, message=FALSE, cache=TRUE}
 #| warning: false
 #| message: false
 #| fig-cap: "Evolução dos vínculos no Maranhão"
@@ -758,7 +791,7 @@ A @tbl-tabela-ma apresenta um resumo das movimentações de admissões e desliga
 
 
 
-```{r}
+```{r, cache=TRUE}
 #| warning: false
 #| message: false
 #| tbl-cap: Movimentações nos últimos 12 (doze) meses no Maranhão
@@ -801,7 +834,7 @@ reactable(dados_selecionados,
 
 Por sua vez, observa-se no @fig-salario-ma o desempenho do estado do Maranhão no quesito salarial.
 
-```{r}
+```{r, cache=TRUE}
 #| warning: false
 #| message: false
 #| fig-cap: "Mediana do salário mensal no Maranhão (R$)"
@@ -853,9 +886,7 @@ ggplot(dados_sem_outliers_extremos_UF, aes(x = saldo_movimentacao, y = salario_m
 
 No @fig-saldo_sexo_ma estão os dados das movimentações por sexo para o mês vigente no Maranhão.
 
-```{r}
-#| warning: false
-#| message: false
+```{r, cache=TRUE}
 #| fig-cap: "Saldo de movimentações por sexo no Maranhão"
 #| label: fig-saldo_sexo_ma
 
@@ -911,7 +942,7 @@ ultimo_dado %>%
 
 O @fig-cbo_saldo_postivo_ma mostra as 10 (dez) ocupações com saldo positivo no mês no estado do Maranhão.
 
-```{r}
+```{r, cache=TRUE}
 #| fig-cap: "10 ocupações com saldo positivo no mês"
 #| label: fig-cbo_saldo_postivo_ma
 
@@ -953,7 +984,7 @@ ggplot(top_10_plot_data, aes(x = reorder(cbo_2002, n), y = n, fill = saldo_movim
 
 O @fig-cbo_saldo_negativo_ma, por sua vez, mostra as 10 (dez) ocupações com saldo negativo no mês no Maranhão.
 
-```{r}
+```{r, cache=TRUE}
 #| fig-cap: "10 ocupações com saldo negativo no mês"
 #| label: fig-cbo_saldo_negativo_ma
 
