@@ -1,6 +1,6 @@
 ---
 title: " Mercado de Trabalho Portuário"
-subtitle: "Agosto 2 de 2024"
+subtitle: "Último dado disponível: outubro de 2024"
 author: "Observatório Portuário"
 crossref: 
   tbl-prefix: Tabela
@@ -260,12 +260,12 @@ ggplot(df_saldo_mensal, aes(x = reorder(sigla_uf, saldo_somado_mensal), y = sald
   geom_bar(stat = "identity", fill = "#87CEFA") +
   coord_flip() +
   labs(
-    title = "Saldo por UF",
+    title = "",
     x = "",
     y = ""
   ) +
   theme_minimal() +
-  geom_text(aes(label = saldo_somado_mensal), hjust = -0.3)
+  geom_text(aes(label = saldo_somado_mensal), hjust = -0.2)
 
 
 
@@ -312,7 +312,7 @@ if (nrow(dados_sem_outliers_extremos_regiao) > 0) {
   ggplot(dados_sem_outliers_extremos_regiao, aes(x = saldo_movimentacao, y = salario_mensal, fill = regiao)) +
     geom_boxplot() +
     geom_text(data = medianas, aes(label = format(mediana_salario, digits = 2, big.mark = ".", decimal.mark = ","), y = mediana_salario),
-              position = position_dodge(width = 0.75),
+              position = position_dodge(width = 1),
               vjust = -0.5,
               color = "black",
               size = 3.5) +
@@ -321,7 +321,7 @@ if (nrow(dados_sem_outliers_extremos_regiao) > 0) {
          x = "",
          y = "") +
     theme_minimal() +
-    theme(axis.text.x = element_text(angle = 1, hjust = 1),
+    theme(axis.text.x = element_text(angle = 1, hjust = 0.5),
           legend.position = "none")
 } else {
   message("Nenhum dado disponível após o filtro de outliers extremos.")
@@ -412,8 +412,8 @@ ultimo_dado %>%
             size = 3,
             color = "black") +
   labs(title = "",
-       x = "Grau de Instrução",
-       y = "Quantidade",
+       x = "",
+       y = "",
        fill = "Movimentações") +
   theme_minimal() +
   scale_fill_manual(values = c("Admitidos" = "#87CEFA", "Desligados" = "#FF6347"))
@@ -454,9 +454,9 @@ ggplot(top_10_ocupacoes_long, aes(x = reorder(cbo_2002, -quantidade), y = quanti
   ) +
   coord_flip() +
   labs(
-    title = "Top 10 Ocupações com Admitidos e Desligados",
-    x = "Ocupação (CBO 2002)",
-    y = "Quantidade",
+    title = "Top 10 Ocupações com maiores saldos",
+    x = "",
+    y = "",
     fill = "Movimentação"
   ) +
   theme_minimal() +
@@ -497,14 +497,14 @@ ggplot(menores_10_ocupacoes_long, aes(x = reorder(cbo_2002, quantidade), y = qua
   geom_text(
     aes(label = quantidade),
     position = position_dodge(width = 0.8),
-    vjust = -0.3,  # Posição da label acima da barra
+    vjust = 0.2,  # Posição da label acima da barra
     size = 3
   ) +
   coord_flip() +
   labs(
-    title = "Top 10 Ocupações com Menores Saldos de Admitidos e Desligados",
-    x = "Ocupação (CBO 2002)",
-    y = "Quantidade",
+    title = "Top 10 Ocupações com menores Saldos",
+    x = "",
+    y = "",
     fill = "Movimentação"
   ) +
   theme_minimal() +
@@ -593,12 +593,14 @@ saldo_ma <- df_variacao %>%
   filter(sigla_uf == "MA" & data_mensal == max(data_mensal)) %>%  
   pull(saldo_mensal)
 
-
+saldo_ma_trimestral <- df_variacao %>%
+  filter(sigla_uf == "MA" & data_mensal == max(data_mensal)) %>%  
+  pull(dif_trimestral)
 
 
 ```
 
-A movimentação de empregos portuários e aquaviários no estado do Maranhão no mês resultou no saldo de `r saldo_ma` vagas, uma variação de, 
+A movimentação de empregos portuários e aquaviários no estado do Maranhão no mês resultou no saldo de `r saldo_ma` vagas, uma variação de `r saldo_ma_trimestral` vagas no trimestre. 
 
 O @fig-saldo-ma mostra a evolução da movimentação e o respectivo saldo de vínculos no estado, mostrando a tendência geral dos processos de admissão e demissão.
 
@@ -652,7 +654,7 @@ p_2 <- ggplot(dados_ma_pivot_saldo, aes(x = data)) +
   labs(
     title = "Movimentação de Trabalho no Maranhão",
     x = "Mês/Ano",
-    y = "Quantidade",
+    y = "",
     color = "Tipo de Movimentação"
   ) +
   theme_minimal() +
@@ -823,8 +825,8 @@ ultimo_dado %>%
             size = 3, # Tamanho do texto
             color = "black") + # Cor do texto
   labs(title = "",
-       x = "Grau de Instrução",
-       y = "Quantidade",
+       x = "",
+       y = "",
        fill = "Movimentações") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) # Rotaciona o eixo x para melhor visualização
@@ -868,7 +870,7 @@ ggplot(top_10_plot_data, aes(x = reorder(cbo_2002, n), y = n, fill = saldo_movim
             color = "black") + # Cor do texto
   labs(title = "",
        x = "",
-       y = "Quantidade",
+       y = "",
        fill = "") +
   theme_minimal()
 
@@ -909,7 +911,7 @@ ggplot(bottom_10_plot_data, aes(x = reorder(cbo_2002, n), y = n, fill = saldo_mo
             color = "black") + # Cor do texto
   labs(title = "",
        x = "",
-       y = "Quantidade",
+       y = "",
        fill = "") +
   theme_minimal()
 ```
